@@ -13,10 +13,12 @@ const CitySabotaged_1 = require("./Rules/CitySabotaged");
  *
  * `perform(choice?)`, in order (base-unit-agent's seams; with none of their rules registered, only steps 2 and 3 do
  * anything, as before they existed):
- * 1. the Diplomat must survive a caught check (`AgentSurvives` with `CAUGHT_CHECK`), or it is destroyed;
+ * 1. `MissionMode` resolves the escape mode (default `HARD` for a chosen target, `ORDINARY` otherwise); then the
+ *    Diplomat must survive a caught check (`AgentSurvives` with `CAUGHT_CHECK`, given the resolved mode): one that is
+ *    caught goes to `AgentLost` and is destroyed by the city's owner, with no `Moved`;
  * 2. the `CitySabotaged` rules;
- * 3. `Moved`, then the Diplomat is used up unless it survives (`AgentSurvives`, `HARD` for a chosen target and
- *    `ORDINARY` otherwise).
+ * 3. `Moved`, then the Diplomat is used up (`AgentLost`, then destroyed) unless it survives `AgentSurvives` with the
+ *    resolved mode.
  *
  * `choice` is one of `targets()` (the `MissionTargets` rules' answers), or its name. A choice that isn't among them is
  * ignored, so with no `MissionTargets` rules there's never a choice.
@@ -48,15 +50,15 @@ class IndustrialSabotage extends Action_1.default {
         if (target !== undefined) {
             this._chosenTarget = target;
         }
-        if (!(0, mission_1.agentSurvives)(unit, mission, escape_1.CAUGHT_CHECK, ruleRegistry)) {
-            ruleRegistry.process(Moved_1.default, unit, mission);
-            unit.destroy();
+        const mode = (0, mission_1.missionMode)(unit, mission, target === undefined ? escape_1.ORDINARY : escape_1.HARD, ruleRegistry);
+        if (!(0, mission_1.agentSurvives)(unit, mission, escape_1.CAUGHT_CHECK, ruleRegistry, undefined, mode)) {
+            (0, mission_1.loseAgent)(unit, this._city, mission, true, ruleRegistry, this._city.player());
             return;
         }
         ruleRegistry.process(CitySabotaged_1.default, unit, this._city, this);
         ruleRegistry.process(Moved_1.default, unit, mission);
-        if (!(0, mission_1.agentSurvives)(unit, mission, target === undefined ? escape_1.ORDINARY : escape_1.HARD, ruleRegistry)) {
-            unit.destroy();
+        if (!(0, mission_1.agentSurvives)(unit, mission, mode, ruleRegistry)) {
+            (0, mission_1.loseAgent)(unit, this._city, mission, false, ruleRegistry);
         }
     }
 }
